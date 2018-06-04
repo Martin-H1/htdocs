@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * { box-sizing: border-box; }
+
+      /* Create two unequal columns that floats next to each other */
+      .column { float: left; padding: 8px; }
+
+      .left { width: 10%; }
+
+      .right { width: 90%; }
+
+      /* Clear floats after the columns */
+      .row : after { content: ""; display: table; clear: both; }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+    <script>
+	/**
+	 * GreyCodeModel object acts as a container for data, and generic logic.
+	 * An instance is created by the controller.
+	 */
+	function GreyCodeModel(bits, innerRadius, outerRadius, center, space, quadrature)
+	{
+	    this.bits = bits;
+	    this.innerRadius = innerRadius;
+	    this.outerRadius = outerRadius;
+	    this.center = center;
+	    this.space = space;
+	    this.quadrature = quadrature;
+
+	    /**
+	     * Converts a standard mathematical angle to the clockwise one
+	     * used by the canvas arc API.
+	     * @param (number) theta the angle to convert.
+	     * @return The counter clockwise equivilent.
+	     */
+	    this.angleToCanvas = function(theta) {
+		return 0 - theta;
+	    }
+
+	    /**
+	     * Converts a natural binary 32 bit value to Gray code.
+	     * @param (number) natural The natural binary value to convert.
+	     * @return The Gray code equivalent value.
+	     */
+	    this.encodeGray = function(natural) {
+		return natural ^ (natural >>> 1);
+	    }
+	    this.getTrackThickness = function() {
+		return (this.getTrackWidth() - (this.space ? 2 : 0));
+	    };
+
+	    this.getTrackWidth = function() {
+		return (this.outerRadius - this.innerRadius) /
+			(this.bits + (this.quadrature ? 1 : 0));
+	    };
+
+	    /**
+	     * Converts polar coodinates to rectangular.
+	     * @param (number) theta the number of radians from the X axis.
+	     * @param (number) radius the distance from the origin.
+	     * @return The point in standard rectangular coodinates.
+	     */
+	    this.polarToRect = function(theta, radius) {
+		var obj = {
+		    x : radius * Math.cos(theta),
+		    y : radius * Math.sin(theta)
+		}
+		return obj;
+	    }
+	}
+
+	/**
+	 * GreyCodeView object acts as a container for the drawing functions
+	 * and variables.
+	 * @param (object) canvas the canvas to draw onto.
+	 * @param (object) model the container of the drawing properties.
+	 */
+	function GreyCodeView(canvas, model)
+	{
+	    this.canvas = canvas;
+	    this.model = model;
+	    this.ctx = canvas.getContext("2d");
+	    this.originX = canvas.width / 2;
+	    this.originY = canvas.height / 2;
+
+	    /**
+	     * Converts a standard mathematical point to a canvas coordinate.
+	     * @param x the horizontal distance from the origin.
+	     * @param y the vertical distance from the origin.
+	     * @return The point adjusted for the canvas coordinates.
+	     */
+	    this.screenToCanvas = function(x, y) {
+		var obj = {
+		    x : this.originX + x,
+		    y : this.originY - y
+		}
+		return obj;
+	    };
+
+
+	    /**
+	     * Draws a center mark.
+	     */
+	    this.drawCenterMark = function() {
+		this.ctx.beginPath();
+		var point = this.screenToCanvas(-10, 0);
+		this.ctx.moveTo(point.x, point.y);
+		point = this.screenToCanvas(10, 0);
+		this.ctx.lineTo(point.x, point.y);
+		point = this.screenToCanvas(0, -10);
+		this.ctx.moveTo(point.x, point.y);
+		point = this.screenToCanvas(0, 10);
+		this.ctx.lineTo(point.x, point.y);
+		this.ctx.stroke();
+	    }
+
+	    /**
+	     * Draws a radial sector within a track on the canvas.
+	     * @param (number) x the horizontal right of the track.
+	     * @param (number) y the vertical right of the track.
+	     * @param (number) radius the distance to the inside edge from the right.
+	     * @param (number) thickness the distances to the outside end of the track.
+	     * @param (number) startAngle 
+	     * @param (number) endAngle
+	     */
+	    this.drawTrackSector = function(x, y, radius, thickness, startAngle, endAngle) {
+		this.ctx.beginPath();
+		var right = this.screenToCanvas(x, y);
+		this.ctx.arc(right.x,
+		   right.y,
+		   radius,
+		   this.model.angleToCanvas(startAngle),
+		   this.model.angleToCanvas(endAngle),
+		   true);
+		this.ctx.arc(right.x,
+		   right.y,
+		   radius + thickness,
+		   this.model.angleToCanvas(endAngle),
+		   this.model.angleToCanvas(startAngle),
+		   false);
+		var end = model.polarToRect(startAngle, radius);
+		end.x += x;
+		end.y += y;
+		end = this.screenToCanvas(end.x, end.y)
+		this.ctx.lineTo(end.x, end.y);
+		this.ctx.fill();
+		this.ctx.stroke();
+	    }
+
+	    this.draw = function() {
+		var thickness = model.getTrackThickness();
+		var trackWidth = model.getTrackWidth();
+		var sectors = Math.pow(2, model.bits);
+		var step = 2 * Math.PI / sectors;
+
+		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+		if (this.model.center)
+		    this.drawCenterMark();
+
+		for(sector = 0; sector < sectors; sector++)
+		{
+		    var startAngle = sector * step;
+		    var endAngle = startAngle + step;
+		    var temp = model.encodeGray(sector);
+		    for (bit = 0; bit <= model.bits; bit++)
+		    {
+			var edge = model.innerRadius + (trackWidth * (model.bits - bit));
+			// if the bit is set, draw a black sector.
+			if (temp & 1)
+			{
+			    this.drawTrackSector(0, 0, edge, thickness, startAngle, endAngle);
+			}
+			temp = temp >> 1;
+		    }
+		    if (model.quadrature)
+		    {
+			var edge = model.innerRadius + (trackWidth * (model.bits + 1));
+			// if the bit is set, draw a black sector.
+			if (sector & 2)
+			{
+			    this.drawTrackSector(0, 0, edge, thickness, startAngle, endAngle);
+			}
+		    }
+		}
+	    };
+	}
+
+	var app = angular.module('greyCodeApp', []);
+
+	app.controller('greyCodeCtrl', function($scope) {
+	    $scope.model = new GreyCodeModel(2, 20, 100, false, false, false);
+	    $scope.view = new GreyCodeView (document.getElementById("myCanvas"), $scope.model);
+
+	    $scope.notify = function() {
+		$scope.view.draw();
+	    };
+
+	    $scope.$watch('model.center', $scope.notify);
+	    $scope.$watch('model.bits', $scope.notify);
+	    $scope.$watch('model.innerRadius', $scope.notify);
+	    $scope.$watch('model.outerRadius', $scope.notify);
+	    $scope.$watch('model.space', $scope.notify);
+	    $scope.$watch('model.quadrature', $scope.notify);
+	});
+    </script>
+  </head>
+  <body>
+    <div ng-app="greyCodeApp" ng-controller="greyCodeCtrl">
+      <div class="row">
+	<div class="column left">Bits</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.bits" min="1" max="11" step="1" value="2" list="bitstickmarks">
+
+	  <datalist id="bitstickmarks">
+	    <option value="1" label="1">
+	    <option value="3" label="3">
+	    <option value="5" label="5">
+	    <option value="7" label="7">
+	    <option value="9" label="9">
+	    <option value="11" label="11">
+	  </datalist>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column left">Inner radius</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.innerRadius" min="20" max="100" step="1" value="20" list="iradiustickmarks">
+	  <datalist id="iradiustickmarks">
+	    <option value="20" label="20">
+	    <option value="30" label="30">
+	    <option value="40" label="40">
+	    <option value="50" label="50">
+	    <option value="60" label="60">
+	    <option value="70" label="70">
+	    <option value="80" label="80">
+	    <option value="90" label="90">
+	    <option value="100" label="100">
+	  </datalist>
+	</div>
+      <div class="row">
+	<div class="column left">Outer radius</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.outerRadius" min="100" max="280" step="1" value="20" list="oradiustickmarks">
+	  <datalist id="oradiustickmarks">
+	    <option value="100" label="100">
+	    <option value="110" label="110">
+	    <option value="120" label="120">
+	    <option value="130" label="130">
+	    <option value="140" label="140">
+	    <option value="150" label="150">
+	    <option value="160" label="160">
+	    <option value="170" label="170">
+	    <option value="180" label="180">
+	    <option value="190" label="190">
+	    <option value="200" label="200">
+	    <option value="210" label="210">
+	    <option value="220" label="220">
+	    <option value="230" label="230">
+	    <option value="240" label="240">
+	    <option value="250" label="250">
+	    <option value="260" label="260">
+	    <option value="270" label="270">
+	    <option value="280" label="280">
+	  </datalist>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column right">
+	  <input type="checkbox" ng-model="model.center" id="addCenter"><label for="addCenter">Add center mark.</label>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column right">
+	  <input type="checkbox" ng-model="model.space" id="addSpace"><label for="addSpace">Add space between rows.</label>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column right">
+	  <input type="checkbox" ng-model="model.quadrature" id="addQuadrature"><label for="addQuadrature">Add outer quadrature ring.</label>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column right">
+	  Bits: {{model.bits}}, Inner Radius: {{model.innerRadius}}, Outer Radius: {{model.outerRadius}}
+	</div>
+      </div>
+      <div class="row">
+	<canvas id="myCanvas" width="800" height="600">
+	</canvas>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * { box-sizing: border-box; }
+
+      /* Create two unequal columns that floats next to each other */
+      .column { float: left; padding: 8px; }
+
+      .left { width: 10%; }
+
+      .right { width: 90%; }
+
+      /* Clear floats after the columns */
+      .row : after { content: ""; display: table; clear: both; }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+    <script src="turtle.js"></script>
+    <script>
+	/**
+	 * TrafficModel object acts as a container for data, and generic logic.
+	 * An instance is created by the controller.
+	 */
+	function TrafficModel(bits, innerRadius, outerRadius, center, space, quadrature)
+	{
+	    this.size = 3;
+	    this.depth = 5;
+	}
+
+	/**
+	 * TrafficView object acts as a container for the drawing functions
+	 * and variables.
+	 * @param (object) iCanvas
+	 * @param (object) tCanvas
+	 * @param (object) model the container of the drawing properties.
+	 */
+	function TrafficView(iCanvas, tCanvas, model)
+	{
+	    this.turtle = new Turtle(iCanvas, tCanvas);
+	    this.model = model;
+
+	    function halfSierpinski(turtle, size, level) {
+		if (level == 0)
+		    turtle.forward(size);
+		else {
+		    function part(turtle) {
+			halfSierpinski(turtle, size, level - 1);
+ 			turtle.left(45);
+			turtle.forward(size * Math.sqrt(2));
+			turtle.left(45);
+			halfSierpinski(turtle, size, level - 1);
+		    }
+		    part(turtle);
+		    turtle.right(90);
+		    turtle.forward(size);
+		    turtle.right(90);
+		    part(turtle);
+		}
+	    }
+
+	    function sierpinski(turtle, size, level) {
+		function part (turtle) {
+		    halfSierpinski(turtle, size, level);
+		    turtle.right(90);
+		    turtle.forward(size);
+		    turtle.right(90);
+		}
+		part(turtle);
+		part(turtle);
+	    }
+
+	    this.draw = function() {
+		this.turtle.hideTurtle();
+		this.turtle.redrawOnMove(false);
+		this.turtle.goto(0,-120);
+		sierpinski(this.turtle, this.model.size, this.model.depth);
+	    	this.turtle.redrawOnMove(true);
+	    	this.turtle.draw();
+	    }
+	}
+
+	var app = angular.module('greyCodeApp', []);
+
+	app.controller('greyCodeCtrl', function($scope) {
+	    $scope.model = new TrafficModel();
+	    $scope.view = new TrafficView (document.getElementById("imageCanvas"), document.getElementById("turtleCanvas"), $scope.model);
+
+	    $scope.notify = function() {
+		$scope.view.draw();
+	    };
+	    $scope.view.draw();
+	});
+    </script>
+  </head>
+  <body>
+    <div ng-app="greyCodeApp" ng-controller="greyCodeCtrl">
+      <div class="row">
+        <canvas id="turtleCanvas" width="600" height="600"></canvas>
+        <canvas id="imageCanvas" width="600" height="600" style="display:none"></canvas>
+      </div>
+    </div>
+  </body>
+</html>

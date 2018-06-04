@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * { box-sizing: border-box; }
+
+      /* Create two unequal columns that floats next to each other */
+      .column { float: left; padding: 8px; }
+
+      .left { width: 10%; }
+
+      .right { width: 90%; }
+
+      /* Clear floats after the columns */
+      .row : after { content: ""; display: table; clear: both; }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+    <script src="turtle.js"></script>
+    <script>
+	/*
+	 * Car object defines the position and velocity of a single car.
+	 * The track is essentially one dimensionaly, so cars have scalar
+	 * values to define their properties.
+	 */
+	function Car(initialHeading, initialVelocity)
+	{
+	    this.aggressiveness = 4;
+	    this.heading = initialHeading;
+	    this.velocity = initialVelocity;
+
+	    // Constrain the heading to a single rotation.
+	    function normalizeHeading(heading)
+	    {
+		if (heading > 360)
+		    heading = heading - 360;
+
+		return heading;
+	    }
+
+	    // checks the proximity to the other car
+	    this.checkProximity = function(otherCar) {
+		var nextHeading = normalizeHeading(this.heading + this.velocity);
+
+		if (Math.abs(nextHeading - otherCar.heading) < (this.aggressiveness * this.velocity))
+		    return true;
+		return false;
+	    }
+
+	    // update the car location by adding the velocity and mod 360.
+	    this.updateHeading = function() {
+		this.heading = normalizeHeading(this.heading + this.velocity);
+	    }
+
+	    // update the car velocity by subtracting the decelleration.
+	    this.slowDown = function() {
+		this.velocity -= 0.2;
+		// clamp above 0.7.
+		this.velocity = Math.max(0.7, this.velocity);
+	    }
+
+	    // update the car velocity by adding the accelleration.
+	    this.speedUp = function() {
+		this.velocity += 0.1;
+		// clamp below 2.5.
+		this.velocity = Math.min(2.5, this.velocity);
+	    }
+	}
+
+	/**
+	 * TrafficModel object acts as a container for data, and generic logic.
+	 * An instance is created by the controller.
+	 */
+	function TrafficModel()
+	{
+	    this.accelerationBias = 0.4;
+	    this.decelerationBias = 0.4;
+	    this.carCount = 10;
+	    this.cars = [];
+
+	    this.init = function() {
+		this.cars = [];
+		var step = 360.0 / this.carCount
+		for(idx = 0; idx < this.carCount; idx++)
+		    this.cars.push(new Car(idx * step, 1));
+	    }
+
+	    this.update = function() {
+		for (idx = 0; idx <this.cars.length; idx++) {
+		    // randomize the velocity a bit.
+		    var bias = Math.random();
+		    if (bias < this.accelerationBias)
+			this.cars[idx].speedUp();
+		    else if (bias <  this.decelerationBias)
+			this.cars[idx].slowDown();
+
+		    this.cars[idx].updateHeading();
+
+		    // Check proximity to car in front, and slow down if needed.
+		    var nextIdx = (idx + 1) >= this.cars.length ? 0 : idx + 1;
+		    if (this.cars[idx].checkProximity(this.cars[nextIdx]))
+			this.cars[idx].slowDown();
+		}
+	    }
+	}
+
+	/**
+	 * TrafficView object acts as a container for the drawing functions
+	 * and variables.
+	 * @param (object) iCanvas
+	 * @param (object) tCanvas
+	 * @param (object) model the container of the drawing properties.
+	 */
+	function TrafficView(iCanvas, tCanvas, model)
+	{
+	    this.turtle = new Turtle(iCanvas, tCanvas);
+	    this.model = model;
+
+	    this.drawCars = function() {
+		for (idx = 0; idx < this.model.cars.length; idx++) {
+		    var radius = 250;
+		    var theta = this.model.cars[idx].heading;
+		    theta = this.turtle.degToRad(theta);
+		    theta += Math.PI / 2.0;
+		    var x = radius * Math.cos(theta);
+		    var y = radius * Math.sin(theta);
+		    this.turtle.angle(90 - this.model.cars[idx].heading);
+		    this.turtle.rectangle(x, y, 30, 15);
+		}
+	    }
+
+	    this.drawTrack = function() {
+		this.turtle.circle(0, 0, 230);
+		this.turtle.circle(0, 0, 270);
+	    }
+
+	    this.draw = function() {
+		this.turtle.hideTurtle();
+		this.turtle.clear();
+		this.turtle.redrawOnMove(false);
+		this.drawTrack();
+		this.drawCars();
+	    	this.turtle.draw();
+	    }
+
+	    this.turtle.animate(function(arg) {
+		arg.model.update();
+		arg.draw();
+	    }, 60, this);
+	}
+
+	var app = angular.module('trafficApp', []);
+
+	app.controller('trafficCtrl', function($scope) {
+	    $scope.model = new TrafficModel();
+	    $scope.view = new TrafficView (document.getElementById("imageCanvas"), document.getElementById("turtleCanvas"), $scope.model);
+
+	    $scope.notify = function() {
+		$scope.view.model.init();
+	    };
+
+	    $scope.$watch('model.carCount', $scope.notify);
+	});
+    </script>
+  </head>
+  <body>
+    <div ng-app="trafficApp" ng-controller="trafficCtrl">
+      <div class="row">
+	<div class="column left">Cars</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.carCount" min="1" max="28" step="1" value="10" list="carstickmarks">
+	  <datalist id="carstickmarks">
+	    <option value="1" label="1">
+	    <option value="7" label="7">
+	    <option value="14" label="14">
+	    <option value="21" label="21">
+	    <option value="28" label="28">
+	  </datalist>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column left">Acceleration Bias</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.accelerationBias" min="0" max="0.5" step="0.01" value="0.4" list="accelerationtickmarks">
+	  <datalist id="accelerationtickmarks">
+	    <option value="0.0" label="0.0">
+	    <option value="0.1" label="0.1">
+	    <option value="0.2" label="0.2">
+	    <option value="0.3" label="0.3">
+	    <option value="0.4" label="0.4">
+	    <option value="0.5" label="0.5">
+	  </datalist>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column left">Deceleration Bias</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.decelerationBias" min="0.0" max="0.5" step="0.01" value="0.4" list="accelerationtickmarks">
+	</div>
+      </div>
+
+      <div class="row">
+	<div class="column right">
+	  Cars: {{model.carCount}}, Acceleration Bias: {{model.accelerationBias}}, Deceleration Bias: {{model.decelerationBias}}
+	</div>
+      </div>
+
+      <div class="row">
+        <canvas id="turtleCanvas" width="600" height="600"></canvas>
+        <canvas id="imageCanvas" width="600" height="600" style="display:none"></canvas>
+      </div>
+    </div>
+  </body>
+</html>

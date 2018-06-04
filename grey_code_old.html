@@ -1,0 +1,313 @@
+<html>
+  <head>
+    <style>
+      * {
+	box-sizing: border-box;
+      }
+
+      /* Create two unequal columns that floats next to each other */
+      .column {
+	float: left;
+	padding: 8px;
+      }
+
+      .left {
+	width: 10%;
+      }
+
+      .right {
+	width: 90%;
+      }
+
+      /* Clear floats after the columns */
+      .row : after {
+	content: "";
+	display: table;
+	clear: both;
+      }
+    </style>
+    <script>
+	/**
+	 * Converts a natural binary 32 bit value to Gray code.
+	 * @param natural The natural binary value to convert.
+	 * @return The Gray code equivalent value.
+	 */
+	function encodeGray(natural) {
+	   return natural ^ (natural >>> 1);
+	}
+
+	/**
+	 * Converts a standard mathematical angle to the clockwise one
+	 * used by the canvas arc API.
+	 * @param theta the angle to convert.
+	 * @return The counter clockwise equivilent.
+	 */
+	function angleToCanvas(theta) {
+	   return 0 - theta;
+	}
+
+	/**
+	 * Converts polar coodinates to rectangular.
+	 * @param theta the number of radians from the X axis.
+	 * @param radius the distance from the origin.
+	 * @return The point in standard rectangular coodinates.
+	 */
+	function polarToRect(theta, radius) {
+	    var obj = {
+	        x : radius * Math.cos(theta),
+	        y : radius * Math.sin(theta)
+	    }
+	    return obj;
+	}
+
+	/**
+	 * The model object is a container of data, that is observable,
+	 * and notifies observers when properties change.
+	 */
+	var model = {
+	    bits: 2,
+	    innerRadius : 20,
+	    outerRadius : 100 ,
+	    space : false ,
+	    quadrature : false ,
+	    listeners : [],
+
+	    addObserver : function (listener) {
+	        this.listeners.push(listener);
+	    },
+
+	    notify : function (arg) {
+	        for (var i = 0; i < this.listeners.length; i += 1) {
+	            this.listeners[i].onNotify(arg);
+	        }
+	    },
+
+	    getTrackThickness : function () {
+	        return (this.getTrackWidth() - (this.space ? 2 : 0));
+	    },
+
+	    getTrackWidth : function () {
+	        return (this.outerRadius - this.innerRadius) /
+			(this.bits + (this.quadrature ? 1 : 0));
+	    },
+
+	    onBitsChange : function (bits) {
+		this.bits = parseInt(bits);
+		this.notify(this);
+	    },
+
+	    onInnerRadiusChange : function (innerRadius) {
+		this.innerRadius = parseInt(innerRadius);
+		this.notify(this);
+	    },
+
+	    onOuterRadiusChange : function (outerRadius) {
+		this.outerRadius = parseInt(outerRadius);
+		this.notify(this);
+	    },
+
+	    onSpaceChange : function (addSpace) {
+		this.space = addSpace;
+		this.notify(this);
+	    },
+
+	    onQuadratureChange : function (addQuadrature) {
+		this.quadrature = addQuadrature;
+		this.notify(this);
+	    },
+
+	    toString : function () {
+		var str = "Bits: " + this.bits + ", Inner radius: " + this.innerRadius + ", Outer radius: " + this.outerRadius;
+		return str;
+	    }
+	};
+
+	/**
+	 * The view object has a canvas tag and model injected into it.
+	 * It uses those to render the model.
+	 */
+	var view = {
+	    canvas : null,
+	    ctx : null,
+	    originX : 0,
+	    originY : 0,
+
+	    /**
+	     * Converts a standard mathematical point to a canvas coordinate.
+	     * @param x the horizontal distance from the origin.
+	     * @param y the vertical distance from the origin.
+	     * @return The point adjusted for the canvas coordinates.
+	     */
+	    screenToCanvas : function(x, y) {
+		var obj = {
+		    x : this.originX + x,
+		    y : this.originY - y
+		}
+		return obj;
+	    },
+
+	    /**
+	     * Draws a radial sector within a track on the canvas.
+	     * @param x the horizontal right of the track.
+	     * @param y the vertical right of the track.
+	     * @param radius the distance to the inside edge from the right.
+	     * @param thickness the distances to the outside end of the track.
+	     * @param startAngle 
+	     * @param endAngle
+	     */
+	    drawTrackSector : function(x, y, radius, thickness, startAngle, endAngle) {
+		this.ctx.beginPath();
+		var right = this.screenToCanvas(x, y);
+		this.ctx.arc(right.x,
+		   right.y,
+		   radius,
+		   angleToCanvas(startAngle),
+		   angleToCanvas(endAngle),
+		   true);
+		this.ctx.arc(right.x,
+		   right.y,
+		   radius + thickness,
+		   angleToCanvas(endAngle),
+		   angleToCanvas(startAngle),
+		   false);
+		var end = polarToRect(startAngle, radius);
+		end.x += x;
+		end.y += y;
+		end = this.screenToCanvas(end.x, end.y)
+		this.ctx.lineTo(end.x, end.y);
+		this.ctx.fill();
+		this.ctx.stroke();
+	    },
+
+	    /**
+	     * Clears the canvas and updates with a new drawing that
+	     * matches the current model values.
+	     */
+	    onNotify : function(model) {
+		var thickness = model.getTrackThickness();
+		var trackWidth = model.getTrackWidth();
+		var sectors = Math.pow(2, model.bits);
+		var step = 2 * Math.PI / sectors;
+
+		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+		for(sector = 0; sector < sectors; sector++)
+		{
+		    var startAngle = sector * step;
+		    var endAngle = startAngle + step;
+		    var temp = encodeGray(sector);
+		    for (bit = 0; bit <= model.bits; bit++)
+		    {
+			var edge = model.innerRadius + (trackWidth * (model.bits - bit));
+			// if the bit is set, draw a black sector.
+			if (temp & 1)
+			{
+			    this.drawTrackSector(0, 0, edge, thickness, startAngle, endAngle);
+			}
+			temp = temp >> 1;
+		    }
+		    if (model.quadrature)
+		    {
+			var edge = model.innerRadius + (trackWidth * (model.bits + 1));
+			// if the bit is set, draw a black sector.
+			if (sector & 2)
+			{
+			    this.drawTrackSector(0, 0, edge, thickness, startAngle, endAngle);
+			}
+		    }
+		}
+		this.ctx.font = "14px Arial";
+		this.ctx.fillText(model.toString(), 12, 12);
+	    },
+
+	   /**
+	    * Creates the canvas and context, and initializes the origin point.
+	    */
+	    onLoad : function(canvasElem, model) {
+		this.canvas = canvasElem;
+		this.ctx = this.canvas.getContext("2d");
+		this.originX = this.canvas.width / 2;
+		this.originY = this.canvas.height / 2;
+		model.addObserver(this);
+		this.onNotify(model);
+	    }
+	};
+      </script>
+  </head>
+  <body>
+<div class="row">
+    <div>
+      <div class="row">
+	<div class="column left">Bits</div>
+	<div class="column right">
+	  <input type="range" min="1" max="11" step="1" value="2" list="bitstickmarks" onchange="model.onBitsChange(this.value);">
+
+	  <datalist id="bitstickmarks">
+	    <option value="1" label="1">
+	    <option value="3" label="3">
+	    <option value="5" label="5">
+	    <option value="7" label="7">
+	    <option value="9" label="9">
+	    <option value="11" label="11">
+	  </datalist>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column left">Inner radius</div>
+	<div class="column right">
+	  <input type="range" min="20" max="100" step="1" value="20" list="iradiustickmarks" onchange="model.onInnerRadiusChange(this.value);">
+	  <datalist id="iradiustickmarks">
+	    <option value="20" label="20">
+	    <option value="30" label="30">
+	    <option value="40" label="40">
+	    <option value="50" label="50">
+	    <option value="60" label="60">
+	    <option value="70" label="70">
+	    <option value="80" label="80">
+	    <option value="90" label="90">
+	    <option value="100" label="100">
+	  </datalist>
+	</div>
+      <div class="row">
+	<div class="column left">Outer radius</div>
+	<div class="column right">
+	  <input type="range" min="100" max="280" step="1" value="20" list="oradiustickmarks" onchange="model.onOuterRadiusChange(this.value)">
+	  <datalist id="oradiustickmarks">
+	    <option value="100" label="100">
+	    <option value="110" label="110">
+	    <option value="120" label="120">
+	    <option value="130" label="130">
+	    <option value="140" label="140">
+	    <option value="150" label="150">
+	    <option value="160" label="160">
+	    <option value="170" label="170">
+	    <option value="180" label="180">
+	    <option value="190" label="190">
+	    <option value="200" label="200">
+	    <option value="210" label="210">
+	    <option value="220" label="220">
+	    <option value="230" label="230">
+	    <option value="240" label="240">
+	    <option value="250" label="250">
+	    <option value="260" label="260">
+	    <option value="270" label="270">
+	    <option value="280" label="280">
+	  </datalist>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column right">
+	  <input type="checkbox" id="addSpace" onchange="model.onSpaceChange(this.checked)"><label for="addSpace">Add space between rows.</label>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column right">
+	  <input type="checkbox" id="addQuadrature" onchange="model.onQuadratureChange(this.checked)"><label for="addQuadrature">Add outer quadrature ring.</label>
+	</div>
+      </div>
+      <div class="row">
+	<canvas id="myCanvas" width="800" height="600">
+	  <script>view.onLoad(document.getElementById("myCanvas"), model)</script>
+	</canvas>
+      </div>
+  </body>
+</html>
