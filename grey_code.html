@@ -99,6 +99,17 @@
 		return obj;
 	    };
 
+	    /**
+	     * Resets the canas dimensions to match image size
+	     * @param width the desired canvas tag width.
+	     * @param height the desired canvas tag width.
+	     */
+	    this.resizeCanvas = function(width, height) {
+		this.canvas.width = width;
+		this.canvas.height = height;
+		this.originX = canvas.width / 2;
+		this.originY = canvas.height / 2;
+	    };
 
 	    /**
 	     * Draws a center mark.
@@ -154,6 +165,9 @@
 		var trackWidth = model.getTrackWidth();
 		var sectors = Math.pow(2, model.bits);
 		var step = 2 * Math.PI / sectors;
+		var size = (model.outerRadius + model.getTrackThickness()) * 2;
+
+		this.resizeCanvas(size, size);
 
 		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 		if (this.model.center)
@@ -184,7 +198,7 @@
 			}
 		    }
 		}
-	    };
+	    }
 	}
 
 	var app = angular.module('greyCodeApp', []);
@@ -204,6 +218,25 @@
 	    $scope.$watch('model.space', $scope.notify);
 	    $scope.$watch('model.quadrature', $scope.notify);
 	});
+
+	function doPrint() {
+		var dataUrl = document.getElementById('myCanvas').toDataURL("image/png");
+		var windowContent = '<!DOCTYPE html>';
+		windowContent += '<html>'
+		windowContent += '<head><title>Print canvas</title></head>';
+		windowContent += '<body>'
+		windowContent += '<img src="' + dataUrl + '">';
+		windowContent += '</body>';
+		windowContent += '</html>';
+
+		var printWin = window.open('','','width=800,height=800');
+		printWin.document.open();
+		printWin.document.write(windowContent);
+		printWin.document.close();
+		printWin.focus();
+		printWin.print();
+		printWin.close();
+	};
     </script>
   </head>
   <body>
@@ -226,43 +259,86 @@
       <div class="row">
 	<div class="column left">Inner radius</div>
 	<div class="column right">
-	  <input type="range" ng-model="model.innerRadius" min="20" max="100" step="1" value="20" list="iradiustickmarks">
+	  <input type="range" ng-model="model.innerRadius" min="20" max="700" step="1" value="20" list="iradiustickmarks">
 	  <datalist id="iradiustickmarks">
 	    <option value="20" label="20">
-	    <option value="30" label="30">
 	    <option value="40" label="40">
-	    <option value="50" label="50">
 	    <option value="60" label="60">
-	    <option value="70" label="70">
 	    <option value="80" label="80">
-	    <option value="90" label="90">
 	    <option value="100" label="100">
+	    <option value="120" label="120">
+	    <option value="140" label="140">
+	    <option value="160" label="160">
+	    <option value="180" label="180">
+	    <option value="200" label="200">
+	    <option value="220" label="220">
+	    <option value="240" label="240">
+	    <option value="260" label="260">
+	    <option value="280" label="280">
+	    <option value="300" label="300">
+	    <option value="320" label="320">
+	    <option value="340" label="340">
+	    <option value="360" label="360">
+	    <option value="380" label="380">
+	    <option value="400" label="400">
+	    <option value="420" label="420">
+	    <option value="440" label="440">
+	    <option value="460" label="460">
+	    <option value="480" label="480">
+	    <option value="500" label="400">
+	    <option value="520" label="520">
+	    <option value="540" label="540">
+	    <option value="560" label="560">
+	    <option value="580" label="580">
+	    <option value="600" label="600">
+	    <option value="620" label="620">
+	    <option value="640" label="640">
+	    <option value="660" label="660">
+	    <option value="680" label="680">
+	    <option value="700" label="700">
 	  </datalist>
 	</div>
       <div class="row">
 	<div class="column left">Outer radius</div>
 	<div class="column right">
-	  <input type="range" ng-model="model.outerRadius" min="100" max="280" step="1" value="20" list="oradiustickmarks">
+	  <input type="range" ng-model="model.outerRadius" min="100" max="800" step="1" value="20" list="oradiustickmarks">
 	  <datalist id="oradiustickmarks">
 	    <option value="100" label="100">
-	    <option value="110" label="110">
 	    <option value="120" label="120">
-	    <option value="130" label="130">
 	    <option value="140" label="140">
-	    <option value="150" label="150">
 	    <option value="160" label="160">
-	    <option value="170" label="170">
 	    <option value="180" label="180">
-	    <option value="190" label="190">
 	    <option value="200" label="200">
-	    <option value="210" label="210">
 	    <option value="220" label="220">
-	    <option value="230" label="230">
 	    <option value="240" label="240">
-	    <option value="250" label="250">
 	    <option value="260" label="260">
-	    <option value="270" label="270">
 	    <option value="280" label="280">
+	    <option value="300" label="300">
+	    <option value="320" label="320">
+	    <option value="340" label="340">
+	    <option value="360" label="360">
+	    <option value="380" label="380">
+	    <option value="400" label="400">
+	    <option value="420" label="420">
+	    <option value="440" label="440">
+	    <option value="460" label="460">
+	    <option value="480" label="480">
+	    <option value="500" label="500">
+	    <option value="520" label="520">
+	    <option value="540" label="540">
+	    <option value="560" label="560">
+	    <option value="580" label="580">
+	    <option value="600" label="600">
+	    <option value="620" label="620">
+	    <option value="640" label="640">
+	    <option value="660" label="660">
+	    <option value="680" label="680">
+	    <option value="700" label="700">
+	    <option value="720" label="720">
+	    <option value="740" label="740">
+	    <option value="760" label="760">
+	    <option value="780" label="780">
+	    <option value="800" label="800">
 	  </datalist>
 	</div>
       </div>
@@ -286,8 +362,15 @@
 	  Bits: {{model.bits}}, Inner Radius: {{model.innerRadius}}, Outer Radius: {{model.outerRadius}}
 	</div>
       </div>
+<!--
       <div class="row">
-	<canvas id="myCanvas" width="800" height="600">
+	<div class="column right">
+	  <button onclick="doPrint()" type="button">Print</button>
+	</div>
+      </div>
+-->
+      <div class="row">
+	<canvas id="myCanvas" width="100" height="100">
 	</canvas>
       </div>
     </div>
