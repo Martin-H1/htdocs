@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * { box-sizing: border-box; }
+
+      /* Create two unequal columns that float next to each other */
+      .column { float: left; padding: 8px; }
+
+      .left { width: 25%; }
+
+      .right { width: 75%; }
+
+      /* Clear floats after the columns */
+      .row : after { content: ""; display: table; clear: both; }
+
+      /* Control table styles */
+      .controlTable{ display: table; width: 100%; }
+      .controlTableRow { display: table-row; }
+      .controlTableHeading {
+          display: table-header-group;
+      }
+      .controlTableCell, .controlTableHead {
+          display: table-cell;
+          padding: 3px 10px;
+      }
+      .controlTableHeading {
+          display: table-header-group;
+          font-weight: bold;
+      } 
+      .controlTableFoot {
+          display: table-footer-group;
+          font-weight: bold;
+      }
+      .controlTableBody { display: table-row-group; }
+      .wrapper { position: relative; width: 600px; height: 600px; }
+      .wrapper canvas { position: absolute; top: 0; left: 0; }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script>
+	/**
+	 * MandelbrotModel object acts as a container for data, and generic
+	 * logic. An instance is created by the controller.
+	 */
+	function MandelbrotModel()
+	{
+	    this.init = function() {
+		this.maxIterations = 20;
+		this.setRegion(-2, 2, 2, -2);
+	    }
+
+	    this.setRegion = function(minReal, maxImag, maxReal, minImag) {
+		this.minImag = minImag;
+		this.maxImag= maxImag;
+		this.minReal = minReal;
+		this.maxReal= maxReal;
+	    }
+
+	    this.calcPoint = function(real, imag) {
+		// Init variables
+		zReal = 0;
+		zImag = 0;
+		cReal = real;
+		cImag = imag;
+		for( count = 0; count < this.maxIterations; count++) {
+		    // Calculate Z^2 + C
+		    zRealSq = zReal * zReal;
+		    zImagSq = zImag * zImag;
+		    // Any point with this magnitude escapes.
+		    if ((zRealSq + zImagSq) > 4.0) {
+			return count;
+		    }
+		    // Multiplying complex numbers, so FOIL method,
+		    // and add C's components to new Z.
+		    zImag = 2 * zReal * zImag + cImag;
+		    zReal = (zRealSq - zImagSq) + cReal
+		}
+		return count;
+	    }
+
+	    this.init();
+	}
+
+	/**
+	 * MandelbrotView object acts as a container for the drawing functions
+	 * and variables.
+	 * @param (object) canvas
+	 * @param (object) model the container of the drawing properties.
+	 */
+	function MandelbrotView(canvas, selectionCanvas, model)
+	{
+	    this.canvas = canvas;
+	    this.selectionCanvas = selectionCanvas;
+	    this.centerX = canvas.width / 2;
+	    this.centerY = canvas.height / 2;
+	    this.model = model;
+
+	    this.makePalatte = function() {
+		this.palatte = [];
+		for(idx = 0; idx < this.model.maxIterations; idx++) {
+		    var scaled = Math.sqrt(idx / this.model.maxIterations);
+		    var hex = Math.round(255 * scaled).toString(16);
+
+		    hex = hex.length % 2 ? '0' + hex : hex;
+		    this.palatte[idx] = "#" + hex + hex + hex;
+		}
+
+		// Handle the extremes as special cases.
+		this.palatte[0] = "#FFFFFF";
+		this.palatte[this.model.maxIterations-1] = "#000000";
+	    }
+
+	    this.yToImaginary = function(y) {
+		range = this.model.maxImag - this.model.minImag;
+		scaleFactor = range / this.canvas.height
+		return this.model.maxImag - (y * scaleFactor)
+	    }
+
+	    this.xToReal = function(x) {
+		range = this.model.maxReal - this.model.minReal;
+		scaleFactor = range / this.canvas.width
+		return (x * scaleFactor) - this.model.maxReal;
+	    }
+
+	    this.draw = function() {
+		var ctx = this.canvas.getContext("2d");
+		for (y = 0; y < this.canvas.height; y ++) {
+		    imag = this.yToImaginary(y);
+		    for (x = 0; x < canvas.width; x ++) {
+			real = this.xToReal(x);
+			escape = this.model.calcPoint(real, imag);
+			ctx.fillStyle = this.palatte[escape-1];
+			ctx.fillRect(x, y, 1, 1);
+		    }
+		}
+
+		// clear the selection canvas.
+		ctx = this.selectionCanvas.getContext("2d");
+		ctx.clearRect(0, 0, 
+			this.selectionCanvas.width,
+			this.selectionCanvas.height);
+	    }
+	    this.makePalatte();
+	    this.draw();
+	}
+
+	var app = angular.module('mandelbrotApp', []);
+
+	app.controller('mandelbrotCtrl', function($scope) {
+	    $scope.model = new MandelbrotModel();
+	    $scope.view = new MandelbrotView (
+		document.getElementById("imageCanvas"),
+		document.getElementById("selectionCanvas"),
+		$scope.model);
+
+	    $scope.restoreDefaults = function() {
+		$scope.view.model.init();
+		this.view.makePalatte();
+		this.view.draw();
+	    };
+
+	    $scope.mouseDown = function ($event) {
+		var rect = $scope.view.canvas.getBoundingClientRect();
+		$scope.mouseDown = true;
+		$scope.mouseDownX = event.clientX - Math.round(rect.left);
+		$scope.mouseDownY = event.clientY - Math.round(rect.top);
+	    }
+
+	    $scope.mouseMove = function ($event) {
+		// Update the mouse position in the model.
+		var canvas = $scope.view.selectionCanvas;
+		var rect = canvas.getBoundingClientRect();
+
+		x = event.clientX - Math.round(rect.left);
+		y = event.clientY - Math.round(rect.top);
+
+		$scope.model.mouseReal = $scope.view.xToReal(x);
+		$scope.model.mouseImag = $scope.view.yToImaginary(y);
+
+		// If we are executing a selection event.
+		if ($scope.mouseDown == true) {
+		    var ctx = canvas.getContext("2d");
+
+		    // Copes with backwards mouse movement as well.
+		    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+		    // Draw the new selection rectangle.
+		    ctx.strokeStyle = "yellow";
+		    ctx.strokeRect( $scope.mouseDownX,
+				    $scope.mouseDownY,
+				    x - $scope.mouseDownX,
+				    y - $scope.mouseDownY);
+		}
+	    }
+
+	    $scope.mouseUp = function ($event) {
+		$scope.mouseDown = false;
+
+		// compute the zoom region and calculate.
+		var rect = $scope.view.canvas.getBoundingClientRect();
+		x = event.clientX - Math.round(rect.left);
+		y = event.clientY - Math.round(rect.top);
+		dr = $scope.view.xToReal($scope.mouseDownX);
+		di = $scope.view.yToImaginary($scope.mouseDownY);
+		ur = $scope.view.xToReal(x);
+		ui = $scope.view.yToImaginary(y);
+		$scope.model.setRegion(dr, di, ur, ui);
+		$scope.view.draw();
+	    }
+
+	    $scope.notify = function() {
+		$scope.view.model.init();
+	    };
+
+	    $scope.$watch('model.maxIterations', $scope.notify);
+	});
+    </script>
+  </head>
+  <body>
+    <div ng-app="mandelbrotApp" ng-controller="mandelbrotCtrl">
+      <div class="row">
+	<div class="column left">
+	  <div class="controlTable">
+	    <div class="controlTableBody">
+	      <div class="controlTableRow">
+		<div class="controlTableCell">
+		  <button ng-click="restoreDefaults()">Restore Defaults</button>
+		</div>
+		<div class="controlTableCell">&nbsp;</div>
+	      </div>
+	      <div class="controlTableRow">
+		<div class="controlTableCell">Upper corner</div>
+		<div class="controlTableCell">{{model.minReal}} + {{model.maxImag}}i</div>
+	      </div>
+	      <div class="controlTableRow">
+		<div class="controlTableCell">Lower corner</div>
+		<div class="controlTableCell">{{model.maxReal}} + {{model.minImag}}i</div>
+	      </div>
+	      <div class="controlTableRow">
+		<div class="controlTableCell">Mouse position</div>
+		<div class="controlTableCell">{{model.mouseReal}} + {{model.mouseImag}}i</div>
+	      </div>
+	      <div class="controlTableRow">
+		<div class="controlTableCell">Max Iterations:</div>
+		<div class="controlTableCell">
+		  <input type="range" ng-model="model.maxIterations" min="20" max="1000" step="10" value="30" list="iterationstickmarks">
+		  <datalist id="iterationstickmarks">
+		    <option value="20" label="20">
+		    <option value="100" label="100">
+		    <option value="200" label="200">
+		    <option value="300" label="300">
+		    <option value="400" label="400">
+		    <option value="500" label="500">
+		    <option value="600" label="600">
+		    <option value="700" label="700">
+		    <option value="800" label="800">
+		    <option value="900" label="900">
+		    <option value="1000" label="1000">
+		  </datalist>
+		</div>
+	      </div>
+	      <div class="controlTableRow">
+		<div class="controlTableCell">&nbsp;</div>
+		<div class="controlTableCell">&nbsp;</div>
+	      </div>
+	      <div class="controlTableRow">
+		<div class="controlTableCell">&nbsp;</div>
+		<div class="controlTableCell">&nbsp;</div>
+	      </div>
+	      <div class="controlTableRow">
+		<div class="controlTableCell">&nbsp;</div>
+		<div class="controlTableCell">&nbsp;</div>
+	      </div>
+	    </div>
+	  </div>
+	</div>
+	<div class="column right" ng-mousedown="mouseDown($event)" 
+	     ng-mousemove="mouseMove($event)" ng-mouseup="mouseUp($event)">
+	  <div class="wrapper">
+	    <canvas id="imageCanvas" width="600" height="600"></canvas>
+	    <canvas id="selectionCanvas" width="600" height="600"></canvas>
+	  </div>
+	</div>
+      </div>
+    </div>
+  </body>
+</html>
