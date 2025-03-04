@@ -20,14 +20,14 @@
 	 * GreyCodeModel object acts as a container for data, and generic logic.
 	 * An instance is created by the controller.
 	 */
-	function GreyCodeModel(bits, innerRadius, outerRadius, center, space, quadrature)
+	function GreyCodeModel(bits, innerRadius, outerRadius, rowSpacing, quadBits, center)
 	{
 	    this.bits = bits;
 	    this.innerRadius = innerRadius;
 	    this.outerRadius = outerRadius;
+	    this.rowSpacing = rowSpacing;
+	    this.quadBits = quadBits;
 	    this.center = center;
-	    this.space = space;
-	    this.quadrature = quadrature;
 
 	    /**
 	     * Converts a standard mathematical angle to the clockwise one
@@ -48,12 +48,12 @@
 		return natural ^ (natural >>> 1);
 	    }
 	    this.getTrackThickness = function() {
-		return (this.getTrackWidth() - (this.space ? 2 : 0));
+		return (this.getTrackWidth() - this.rowSpacing);
 	    };
 
 	    this.getTrackWidth = function() {
 		return (this.outerRadius - this.innerRadius) /
-			(this.bits + (this.quadrature ? 1 : 0));
+			(this.bits + (this.quadBits ? 2 : 0));
 	    };
 
 	    /**
@@ -173,6 +173,7 @@
 		if (this.model.center)
 		    this.drawCenterMark();
 
+		/* Draw grey code from inside to edge for the number of bits */
 		for(sector = 0; sector < sectors; sector++)
 		{
 		    var startAngle = sector * step;
@@ -188,12 +189,27 @@
 			}
 			temp = temp >> 1;
 		    }
-		    if (model.quadrature)
+		}
+
+		/* Draw outer quadrature rings if needed */
+		if (model.quadBits)
+		{
+		    sectors = Math.pow(2, model.quadBits);
+		    step = 2 * Math.PI / sectors;
+
+		    for(sector = 0; sector < sectors; sector++)
 		    {
+			var startAngle = sector * step;
+			var endAngle = startAngle + step;
 			var edge = model.innerRadius + (trackWidth * (model.bits + 1));
+
 			// if the bit is set, draw a black sector.
 			if (sector & 2)
 			{
+			    this.drawTrackSector(0, 0, edge, thickness, startAngle, endAngle);
+			    startAngle += step;
+			    endAngle = startAngle + step;
+			    edge = model.innerRadius + (trackWidth * (model.bits + 2));
 			    this.drawTrackSector(0, 0, edge, thickness, startAngle, endAngle);
 			}
 		    }
@@ -204,7 +220,7 @@
 	var app = angular.module('greyCodeApp', []);
 
 	app.controller('greyCodeCtrl', function($scope) {
-	    $scope.model = new GreyCodeModel(2, 20, 100, false, false, false);
+	    $scope.model = new GreyCodeModel(2, 20, 100, 0, 0, false);
 	    $scope.view = new GreyCodeView (document.getElementById("myCanvas"), $scope.model);
 
 	    $scope.notify = function() {
@@ -215,8 +231,8 @@
 	    $scope.$watch('model.bits', $scope.notify);
 	    $scope.$watch('model.innerRadius', $scope.notify);
 	    $scope.$watch('model.outerRadius', $scope.notify);
-	    $scope.$watch('model.space', $scope.notify);
-	    $scope.$watch('model.quadrature', $scope.notify);
+	    $scope.$watch('model.rowSpacing', $scope.notify);
+	    $scope.$watch('model.quadBits', $scope.notify);
 	});
 
 	function doPrint() {
@@ -229,20 +245,22 @@
 		windowContent += '</body>';
 		windowContent += '</html>';
 
-		var printWin = window.open('','','width=800,height=800');
+		var printWin = window.open('', '', 'width=800, height=800');
 		printWin.document.open();
 		printWin.document.write(windowContent);
-		printWin.document.close();
-		printWin.focus();
-		printWin.print();
-		printWin.close();
+		printWin.document.addEventListener('load', function() {
+		    printWin.focus();
+		    printWin.print();
+		    printWin.document.close();
+		    printWin.close();            
+		}, true);
 	};
     </script>
   </head>
   <body>
     <div ng-app="greyCodeApp" ng-controller="greyCodeCtrl">
       <div class="row">
-	<div class="column left">Bits</div>
+	<div class="column left">Grey code bit</div>
 	<div class="column right">
 	  <input type="range" ng-model="model.bits" min="1" max="11" step="1" value="2" list="bitstickmarks">
 
@@ -342,6 +360,51 @@
 	  </datalist>
 	</div>
       </div>
+        <div class="row">
+	<div class="column left">Row spacing</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.rowSpacing" min="0" max="12" step="1" value="0" list="rowspacingtickmarks">
+	  <datalist id="rowspacingtickmarks">
+	    <option value="0" label="0">
+	    <option value="1" label="1">
+	    <option value="2" label="2">
+	    <option value="3" label="3">
+	    <option value="4" label="4">
+	    <option value="5" label="5">
+	    <option value="6" label="6">
+	    <option value="7" label="7">
+	    <option value="8" label="8">
+	    <option value="9" label="9">
+	    <option value="10" label="10">
+	    <option value="11" label="11">
+	    <option value="12" label="12">
+	  </datalist>
+	</div>
+      </div>
+
+      <div class="row">
+	<div class="column left">Quadrature ring bits</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.quadBits" min="0" max="12" step="1" value="0" list="quadbitstickmarks">
+
+	  <datalist id="quadbitstickmarks">
+	    <option value="0" label="0">
+	    <option value="1" label="1">
+	    <option value="2" label="2">
+	    <option value="3" label="3">
+	    <option value="4" label="4">
+	    <option value="5" label="5">
+	    <option value="6" label="6">
+	    <option value="7" label="7">
+	    <option value="8" label="8">
+	    <option value="9" label="9">
+	    <option value="10" label="10">
+	    <option value="11" label="11">
+	    <option value="12" label="12">
+	  </datalist>
+	</div>
+      </div>
+
       <div class="row">
 	<div class="column right">
 	  <input type="checkbox" ng-model="model.center" id="addCenter"><label for="addCenter">Add center mark.</label>
@@ -349,29 +412,17 @@
       </div>
       <div class="row">
 	<div class="column right">
-	  <input type="checkbox" ng-model="model.space" id="addSpace"><label for="addSpace">Add space between rows.</label>
+	  Grey Code Bits: {{model.bits}}, Inner Radius: {{model.innerRadius}}, Outer Radius: {{model.outerRadius}}, Row Spacing: {{model.rowSpacing}}, Quadrature Ring Bits: {{model.quadBits}}
 	</div>
       </div>
       <div class="row">
-	<div class="column right">
-	  <input type="checkbox" ng-model="model.quadrature" id="addQuadrature"><label for="addQuadrature">Add outer quadrature ring.</label>
-	</div>
+	<canvas id="myCanvas" width="100" height="100">
+	</canvas>
       </div>
-      <div class="row">
-	<div class="column right">
-	  Bits: {{model.bits}}, Inner Radius: {{model.innerRadius}}, Outer Radius: {{model.outerRadius}}
-	</div>
-      </div>
-<!--
       <div class="row">
 	<div class="column right">
 	  <button onclick="doPrint()" type="button">Print</button>
 	</div>
-      </div>
--->
-      <div class="row">
-	<canvas id="myCanvas" width="100" height="100">
-	</canvas>
       </div>
     </div>
   </body>
