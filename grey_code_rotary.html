@@ -220,7 +220,7 @@
 	var app = angular.module('greyCodeApp', []);
 
 	app.controller('greyCodeCtrl', function($scope) {
-	    $scope.model = new GreyCodeModel(2, 20, 100, 0, 0, false);
+	    $scope.model = new GreyCodeModel(2, 10, 100, 0, 0, true);
 	    $scope.view = new GreyCodeView (document.getElementById("myCanvas"), $scope.model);
 
 	    $scope.notify = function() {
@@ -260,7 +260,7 @@
   <body>
     <div ng-app="greyCodeApp" ng-controller="greyCodeCtrl">
       <div class="row">
-	<div class="column left">Grey code bit</div>
+	<div class="column left">Grey code bits</div>
 	<div class="column right">
 	  <input type="range" ng-model="model.bits" min="1" max="11" step="1" value="2" list="bitstickmarks">
 
@@ -277,8 +277,9 @@
       <div class="row">
 	<div class="column left">Inner radius</div>
 	<div class="column right">
-	  <input type="range" ng-model="model.innerRadius" min="20" max="360" step="1" value="20" list="iradiustickmarks">
+	  <input type="range" ng-model="model.innerRadius" min="10" max="360" step="1" value="10" list="iradiustickmarks">
 	  <datalist id="iradiustickmarks">
+	    <option value="10" label="10">
 	    <option value="20" label="20">
 	    <option value="30" label="30">
 	    <option value="40" label="40">
