@@ -25,7 +25,7 @@
 	 */
 	function GrayCodeModel(firstNum, range, width, height, rowSpacing)
 	{
-	    this.bits = Math.ceil(Math.log(firstNum+range)/Math.log(2));
+	    this.bits = Math.ceil(Math.log(firstNum + range) / Math.log(2));
 	    this.firstNum = firstNum;
 	    this.range = range;
 	    this.width = width;
@@ -99,14 +99,15 @@
 	     * equal to the number of bits in the gray code.
 	     */
 	    this.draw = function() {
+		this.model.bits = Math.ceil(Math.log(this.model.firstNum + this.model.range) / Math.log(2));
 		var thickness = model.getColumnThickness();
 		var cellWidth = model.getColumnWidth();
 		var cellHeight = model.height / model.range;
 
-		this.resizeCanvas(model.width, model.height);
-		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+		this.resizeCanvas(model.width + cellWidth, model.height + cellHeight);
+		this.ctx.clearRect(0, 0, this.canvas.width + cellWidth, this.canvas.height + cellHeight);
 
-		// Draw gray code rows from bottom to top.
+		// Draw gray code rows.
 		for (var num = model.firstNum; num < (model.firstNum + model.range); num++)
 		{
 		    var startY = (num - model.firstNum) * cellHeight;
@@ -250,44 +251,20 @@
       <div class="row">
 	<div class="column left">Height</div>
 	<div class="column right">
-	  <input type="range" ng-model="model.height" min="150" max="500" step="1" value="150" list="heighttickmarks">
+	  <input type="range" ng-model="model.height" min="400" max="1500" step="1" value="400" list="heighttickmarks">
 	  <datalist id="heighttickmarks">
-	    <option value="150" label="150">
-	    <option value="160" label="160">
-	    <option value="170" label="170">
-	    <option value="180" label="180">
-	    <option value="190" label="190">
-	    <option value="200" label="200">
-	    <option value="210" label="210">
-	    <option value="220" label="220">
-	    <option value="230" label="230">
-	    <option value="240" label="240">
-	    <option value="250" label="250">
-	    <option value="260" label="260">
-	    <option value="270" label="270">
-	    <option value="280" label="280">
-	    <option value="290" label="290">
-	    <option value="300" label="300">
-	    <option value="310" label="310">
-	    <option value="320" label="320">
-	    <option value="330" label="330">
-	    <option value="340" label="340">
-	    <option value="350" label="350">
-	    <option value="360" label="360">
-	    <option value="370" label="370">
-	    <option value="380" label="380">
-	    <option value="390" label="390">
 	    <option value="400" label="400">
-	    <option value="410" label="410">
-	    <option value="420" label="420">
-	    <option value="430" label="430">
-	    <option value="440" label="440">
-	    <option value="450" label="450">
-	    <option value="460" label="460">
-	    <option value="470" label="470">
-	    <option value="480" label="480">
-	    <option value="490" label="490">
 	    <option value="500" label="500">
+	    <option value="600" label="600">
+	    <option value="700" label="700">
+	    <option value="800" label="800">
+	    <option value="900" label="900">
+	    <option value="1000" label="1000">
+	    <option value="1100" label="1100">
+	    <option value="1200" label="1200">
+	    <option value="1300" label="130">
+	    <option value="1400" label="1400">
+	    <option value="1500" label="1500">
 	  </datalist>
 	</div>
       </div>
