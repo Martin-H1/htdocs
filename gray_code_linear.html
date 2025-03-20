@@ -1,6 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Gray Code Generator</title>
     <style>
       * { box-sizing: border-box; }
 
@@ -14,17 +17,17 @@
       /* Clear floats after the columns */
       .row : after { content: ""; display: table; clear: both; }
     </style>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
     <script>
 	/**
 	 * GrayCodeModel object acts as a container for data, and generic logic.
 	 * An instance is created by the controller.
 	 */
-	function GrayCodeModel(firstNum, lastNum, width, height, rowSpacing)
+	function GrayCodeModel(firstNum, range, width, height, rowSpacing)
 	{
-	    this.bits = Math.ceil(Math.log(lastNum)/Math.log(2));
+	    this.bits = Math.ceil(Math.log(firstNum+range)/Math.log(2));
 	    this.firstNum = firstNum;
-	    this.lastNum = lastNum;
+	    this.range = range;
 	    this.width = width;
 	    this.height = height;
 	    this.rowSpacing = rowSpacing;
@@ -62,7 +65,7 @@
 	    this.canvas = canvas;
 	    this.model = model;
 	    this.ctx = canvas.getContext("2d");
-	    this.originX = 0;
+	    this.originX = canvas.width;
 	    this.originY = canvas.height;
 
 	    /**
@@ -73,7 +76,7 @@
 	     */
 	    this.screenToCanvas = function(x, y) {
 		var obj = {
-		    x : this.originX + x,
+		    x : this.originX - x,
 		    y : this.originY - y
 		}
 		return obj;
@@ -87,7 +90,7 @@
 	    this.resizeCanvas = function(width, height) {
 		this.canvas.width = width;
 		this.canvas.height = height;
-		this.originX = 0;
+		this.originX = canvas.width;
 		this.originY = canvas.height;
 	    };
 
@@ -98,13 +101,13 @@
 	    this.draw = function() {
 		var thickness = model.getColumnThickness();
 		var cellWidth = model.getColumnWidth();
-		var cellHeight = (model.height / (model.lastNum - model.firstNum));
+		var cellHeight = model.height / model.range;
 
 		this.resizeCanvas(model.width, model.height);
 		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
 		// Draw gray code rows from bottom to top.
-		for (var num = model.firstNum; num < model.lastNum; num++)
+		for (var num = model.firstNum; num < (model.firstNum + model.range); num++)
 		{
 		    var startY = (num - model.firstNum) * cellHeight;
 		    var temp = model.encodeGray(num);
@@ -112,11 +115,12 @@
 		    // Draw gray code columns from right to left.
 		    for (bit = 0; bit < model.bits; bit++)
 		    {
-			var startX = bit * columnWidth;
+			var startX = bit * cellWidth;
 			// if the bit is set, draw a black cell.
 			if (temp & 1)
 			{
-			    this.ctx.fillRect(startX, cellWidth, startY, cellHeight);
+			    var point = this.screenToCanvas(startX, startY);
+			    this.ctx.fillRect(point.x, point.y, cellWidth, cellHeight);
 			}
 			temp = temp >> 1;
 		    }
@@ -127,14 +131,15 @@
 	var app = angular.module('grayCodeApp', []);
 
 	app.controller('grayCodeCtrl', function($scope) {
-	    $scope.model = new GrayCodeModel(0, 10, 20, 100, 0);
+	    $scope.model = new GrayCodeModel(0, 64, 100, 100, 0);
 	    $scope.view = new GrayCodeView (document.getElementById("myCanvas"), $scope.model);
 
 	    $scope.notify = function() {
 		$scope.view.draw();
 	    };
 
-	    $scope.$watch('model.center', $scope.notify);
+	    $scope.$watch('model.firstNum', $scope.notify);
+	    $scope.$watch('model.range', $scope.notify);
 	    $scope.$watch('model.bits', $scope.notify);
 	    $scope.$watch('model.width', $scope.notify);
 	    $scope.$watch('model.height', $scope.notify);
@@ -166,25 +171,43 @@
   <body>
     <div ng-app="grayCodeApp" ng-controller="grayCodeCtrl">
       <div class="row">
-	<div class="column left">Gray code bits</div>
+	<div class="column left">First Number</div>
 	<div class="column right">
-	  <input type="range" ng-model="model.bits" min="1" max="11" step="1" value="2" list="bitstickmarks">
-
-	  <datalist id="bitstickmarks">
-	    <option value="1" label="1">
-	    <option value="3" label="3">
-	    <option value="5" label="5">
-	    <option value="7" label="7">
-	    <option value="9" label="9">
-	    <option value="11" label="11">
+	  <input type="range" ng-model="model.firstNum" min="0" max="256" step="16" value="0" list="firstnumtickmarks">
+	  <datalist id="firstnumtickmarks">
+	    <option value="0" label="0">
+	    <option value="16" label="16">
+	    <option value="32" label="32">
+	    <option value="64" label="64">
+	    <option value="96" label="96">
+	    <option value="128" label="128">
+	    <option value="160" label="160">
+	    <option value="192" label="192">
+	    <option value="224" label="224">
+	    <option value="256" label="256">
+	  </datalist>
+	</div>
+      </div>
+      <div class="row">
+	<div class="column left">Range</div>
+	<div class="column right">
+	  <input type="range" ng-model="model.range" min="0" max="256" step="16" value="0" list="rangetickmarks">
+	  <datalist id="rangetickmarks">
+	    <option value="0" label="0">
+	    <option value="16" label="16">
+	    <option value="32" label="32">
+	    <option value="64" label="64">
+	    <option value="96" label="96">
+	    <option value="128" label="128">
+	    <option value="256" label="256">
 	  </datalist>
 	</div>
       </div>
       <div class="row">
 	<div class="column left">Width</div>
 	<div class="column right">
-	  <input type="range" ng-model="model.width" min="10" max="360" step="1" value="10" list="iradiustickmarks">
-	  <datalist id="iradiustickmarks">
+	  <input type="range" ng-model="model.width" min="10" max="360" step="1" value="10" list="widthtickmarks">
+	  <datalist id="widthtickmarks">
 	    <option value="10" label="10">
 	    <option value="20" label="20">
 	    <option value="30" label="30">
@@ -223,11 +246,12 @@
 	    <option value="360" label="360">
 	  </datalist>
 	</div>
+      </div>
       <div class="row">
 	<div class="column left">Height</div>
 	<div class="column right">
-	  <input type="range" ng-model="model.height" min="150" max="500" step="1" value="150" list="oradiustickmarks">
-	  <datalist id="oradiustickmarks">
+	  <input type="range" ng-model="model.height" min="150" max="500" step="1" value="150" list="heighttickmarks">
+	  <datalist id="heighttickmarks">
 	    <option value="150" label="150">
 	    <option value="160" label="160">
 	    <option value="170" label="170">
@@ -267,7 +291,7 @@
 	  </datalist>
 	</div>
       </div>
-        <div class="row">
+      <div class="row">
 	<div class="column left">Row spacing</div>
 	<div class="column right">
 	  <input type="range" ng-model="model.rowSpacing" min="0" max="12" step="1" value="0" list="rowspacingtickmarks">
@@ -290,7 +314,7 @@
       </div>
       <div class="row">
 	<div class="column right">
-	  First number: {{model.firstNum;}}, Last number: {{model.lastNum}}, Gray Code Bits: {{model.bits}}, Width: {{model.width}}, Height: {{model.height}}, Row Spacing: {{model.rowSpacing}}
+	  First number: {{model.firstNum}}, Range: {{model.range}}, Gray Code Bits: {{model.bits}}, Width: {{model.width}}, Height: {{model.height}}, Row Spacing: {{model.rowSpacing}}
 	</div>
       </div>
       <div class="row">
